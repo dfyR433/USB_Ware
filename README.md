@@ -1,5 +1,5 @@
 # USB_Ware
-Basic simple educational ransomware file encryptor and decryptor arduino code for esp32-s2 board.
+# Basic simple educational ransomware file encryptor and decryptor arduino code for esp32-s2 board.
 installation: Arduino IDE
 Boards: both ESP32-S2 & S3
 password: 12345678   // for decryption
