@@ -11,3 +11,7 @@
 - 4. Upload the code.   // This will run after the file is uploaded.
 - 5. This will encrypt the targeted folder only.
 - For decryption, run the Python script and type the password.
+# DeskWare
+- You can use this code at your own risk.
+- This will encrypt the whole desktop on your device.
+- For decryption, change "e" to "d" then upload the code.
