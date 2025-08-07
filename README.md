@@ -4,6 +4,7 @@
 - Boards: both ESP32-S2 & S3
 - password: 12345678   // for decryption
 - folder name: test_data   // for testing the code
+- Windows computers only
 # Steps
 - 1. Create the folder on the desktop.
 - 2. Create a text file in the folder.
