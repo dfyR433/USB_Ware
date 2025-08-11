@@ -13,7 +13,7 @@ const char* MODE = "e";
 
 // Typing delay multiplier: 
 //   Smaller values = faster keystrokes
-//   Must be >= 1.0 for stability
+//   Must be >= 10.0 for stability
 float speed = 20.0;   
 
 //==================================================
@@ -181,3 +181,4 @@ void setup() {
 // Purpose : Not used; HID payload only runs once.
 //--------------------------------------------------
 void loop() {}
+
