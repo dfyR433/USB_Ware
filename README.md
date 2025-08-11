@@ -1,5 +1,3 @@
-# USB_Ware
-
 ## Project Description
 
 This project leverages the native USB capabilities of ESP32-S2/S3 boards to emulate a USB HID keyboard device. It automatically injects a Python script into a connected Windows host via a hidden PowerShell window. The injected script performs secure encryption or decryption of files located on the user's Desktop.
@@ -34,12 +32,12 @@ Key highlights include automatic installation of required Python libraries, secu
 ## Requirements
 
 - **Target Machine:**
-  - Windows OS with PowerShell installed (default on Windows 10 and later)
+  - Windows OS with PowerShell installed (default on Windows 11 and later)
   - Python 3.x installed and accessible via `python` command
   - Internet connection to install Python packages if missing
 
 - **Host Development:**
-  - Arduino IDE 1.8.19 or later
+  - Arduino IDE
   - ESP32 Arduino core (latest recommended)
 
 ---
@@ -59,5 +57,3 @@ Key highlights include automatic installation of required Python libraries, secu
 **By:** dfyR433  
 **Platform:** ESP32-S2 / ESP32-S3 (Native USB HID)  
 **Languages:** Arduino (C++) and Python
-
----
