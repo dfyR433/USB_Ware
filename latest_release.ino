@@ -33,7 +33,7 @@ int bruteDelay = 100;
 // Captive portal Wi-Fi AP settings
 String inputSSID = "Captive portal";  // SSID
 String inputPASS = "12345678";       // Password (leave empty for open network)
-String portalName = "super portal";  // Portal name
+String portalName = "super portal";  // Portal name (super portal, super google, super pass)
 
 // Encryption/Decryption mode: "e" = encrypt, "d" = decrypt
 const char* MODE = "e";
@@ -583,3 +583,4 @@ void loop() {
   dnsServer.processNextRequest();
   server.handleClient();
 } 
+
