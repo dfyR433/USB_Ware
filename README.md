@@ -1,7 +1,7 @@
 # One Click
 
 <p align="center">
-  <img src="img/logo.jpg" alt="USB Ware Logo" width="200"/>
+  <img src="logo.jpg" alt="USB Ware Logo" width="200"/>
 </p>
 
 ## Overview
