@@ -1,7 +1,5 @@
 # One Click
 
-> **ESP32 Wi-Fi File Downloader Firmware**
-
 <p align="center">
   <img src="img/logo.jpg" alt="USB Ware Logo" width="200"/>
 </p>
