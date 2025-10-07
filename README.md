@@ -1,4 +1,4 @@
-# One Click
+# USB Ware
 
 <p align="center">
   <img src="logo.jpg" alt="USB Ware Logo" width="200"/>
