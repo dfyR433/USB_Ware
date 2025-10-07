@@ -107,8 +107,6 @@
 
 ## License
 
-Include your desired license here (MIT recommended for educational projects). Example:
-
 ```
 MIT License
 Copyright (c) 2025 dfyR433
