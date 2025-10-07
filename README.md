@@ -4,122 +4,113 @@
   <img src="logo.jpg" alt="USB Ware Logo" width="200"/>
 </p>
 
-## Overview
+**USB Ware** is an ESP-based firmware that exposes a small web UI to trigger HID actions (keyboard/mouse) and demo scripts on a connected Windows host. It was created as an educational tool and proof-of-concept to show how HID injection and scripted payloads can be triggered from a local Wi‑Fi interface.
 
-This project demonstrates how an ESP32 can:
-
-* Host a Wi-Fi access point (AP) and act as a captive portal using DNS redirection.
-* Serve simple HTML pages (demo login pages).
-* Accept form submissions and log them to the serial console for demonstration only.
-* Perform harmless HID actions (open Notepad and type a demo message), purely for demonstration.
-
-> **Important:** The codebase has been sanitized for safety. Any original pages that mimicked real services or captured real credentials were replaced with clearly labeled demo pages and logging to Serial only.
+> ⚠️ **Safety & Ethics**
+>
+> This project contains functionality that can be used to automate actions on a connected computer (opening apps, typing commands, writing files, running PowerShell/Python scripts, encrypting/decrypting files). Use **only** in controlled, isolated, and consented environments (your own test machine or lab). Do **not** deploy this on other machines or use it to access systems without explicit permission — doing so may be illegal.
 
 ---
 
-## Features (Safe Variants)
+## Contents
 
-Implemented safe/demo features:
-
-* `captive_portal` — AP + DNS redirect to demo login page. **Demo only**; submitted values are printed to Serial (not saved or transmitted).
-* `richroll` — Opens the configured URL on the host computer via HID (harmless link or demo site). Use with permission.
-* `barrel_roll` — Opens a benign web query (fun demo).
-* `note` — Opens Notepad and types a harmless message.
-* `script` — Launches an embedded Python demo saved to the user profile and executes it; **the demo only manipulates test files** inside a controlled directory (no destructive behavior).
-* `script_richroll`, `all-brute_force` — Combined safe demos. Note brute-force functionality is intentionally disabled; brute-force attack code is not present.
-
-**Removed / Disabled:** Any code that mimics major services (Google, banking, etc.), code that exfiltrates credentials, or encryption/ransomware payloads. Brute-force and unauthorized scanning tools are not supported.
+* `latest_release.ino` — main Arduino/ESP sketch (webserver + handlers).
+* `Configs.h` — global configuration and embedded web UI HTML (`MainPage[]`).
+* `USB_Tools.h` — HID helper functions and payload implementations (Python demo, Rickroll, barrel-roll, notepad, etc.).
 
 ---
 
-## Hardware & Software Requirements
+## Features
 
-* **Board:** ESP32 development board with USB HID capability or an ESP32 variant supported by your HID library. (Example: ESP32-S2/S3 if using HID libraries that support them).
-* **USB HID library:** A compatible USB HID library for your board (the sample used `USB.h` and `USBHIDKeyboard.h` — pick the version compatible with your core and board).
-* **Arduino IDE:**
-* **Required libraries:**
+* Wi‑Fi AP hosted configuration portal (defaults in `Configs.h`).
+* Minimal web UI (neon terminal look) for triggering features:
 
-  * `WebServer.h`
-  * `DNSServer.h`
-  * HID library compatible with your board
-* **Host OS:** Windows is used in the demo for the HID example (opening Notepad / PowerShell). Adjust scripts for other OSes if needed.
-
----
-
-## Quick Start
-
-1. **Open the project** in Arduino IDE or PlatformIO.
-2. **Select** the proper ESP32 board and COM port.
-3. **Edit configuration** at the top of the sketch to choose a safe feature:
-
-```cpp
-// ================= User Settings =================
-
-// Select feature:
-// Options:
-// "richroll"           -> Rickroll YouTube prank
-// "captive_portal"     -> Launch captive portal with DNS redirection
-// "script"             -> Execute embedded HID scripts
-// "script_richroll"    -> Script + Rickroll
-// "barrel_roll"        -> Barrel roll animation/demo
-// "note"               -> Type notes automatically
-// "brute_force"        -> Android PIN brute force demo
-// "all-brute_force"    -> All except brute force
-const char* feature = "richroll";
-
-// Brute-force delay in milliseconds per attempt
-int bruteDelay = 100;
-
-// Captive portal Wi-Fi AP settings
-String inputSSID = "Captive portal";  // SSID
-String inputPASS = "12345678";       // Password (leave empty for open network)
-String portalName = "super portal";  // Portal name (super portal, super google, super pass)
-
-// Encryption/Decryption mode: "e" = encrypt, "d" = decrypt
-const char* MODE = "e";
-
-// Target folder inside user profile (Desktop, Documents, Downloads, etc.)
-const char* TARGET_FOLDER_NAME = "Desktop";
-
-// Typing delay multiplier (affects HID typing speed)
-float Delay = 35.0;
-
-// YouTube URL for Rickroll payload
-const char* linkURL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
-
-//--------------------------------------------------
-```
-
-4. **Upload** the sketch to the ESP32.
+  * **Ping Site** — opens a target URL (defaults to a YouTube Rickroll).
+  * **Python Script** — types a multi-line PowerShell block which saves and runs a Python script (educational encrypt/decrypt demo).
+  * **Script + Ping** — runs the Python script then opens the URL.
+  * **Barrel Roll** — opens a Google query that triggers the barrel-roll animation.
+  * **Notepad** — opens Notepad and types a short message.
+  * **All** — run all enabled actions (sequence depends on the sketch).
+* HID utilities implemented in `USB_Tools.h` including typed input, combos, opening Run dialog, switching windows, and more.
 
 ---
 
-## Configuration (Detailed)
+## Requirements
 
-Top-of-file variables you can safely edit:
-
-* `feature` — Choose a demo feature. Example values:
-
-  * `"captive_portal"` — demo captive portal.
-  * `"richroll"` — open a demo URL via HID (use a harmless URL).
-  * `"barrel_roll"`, `"note"`, `"script"`.
-* `bruteDelay` — Only relevant if you enable a local demo loop. There is no brute-force enabled by default.
-* `inputSSID` / `inputPASS` — SSID and password for the demo AP.
-* `portalName` — Controls which demo HTML page is served (all pages are clearly labeled as demos).
-* `MODE` — For the demo Python script, `"e"` or `"d"` (simulated; script will operate only on a test directory).
-* `TARGET_FOLDER_NAME` — For the embedded script, use a safe test folder (e.g., `ESP32_Demo_Files`).
-* `Delay` — Controls HID typing speed.
+* Arduino IDE (1.8.x or later recommended) or PlatformIO.
+* ESP32 development board with native USB/HID support (ESP32-S2 / ESP32-S3 recommended) if you want direct native USB HID functionality. Non-native-USB ESP32 boards require an additional USB interface (or a different board) to perform HID.
+* USB HID libraries referenced in project (the sketch includes `USB.h`, `USBHIDKeyboard.h`, `USBHIDMouse.h`). Make sure the libraries installed match your board and core version.
 
 ---
 
-## Contributing
+## Quick setup & upload
 
-* Create issues for bug reports or feature requests.
-* Pull requests must adhere to the project’s safety policy (no code for non-consensual credential capture, ransomware, destructive payloads, or unlawful activity).
-* Provide test cases and documentation for any new demo features.
+1. Open the Arduino IDE.
+2. Install the correct ESP32 board support (Espressif) via Boards Manager.
+3. Install any missing libraries referenced by the project (`USB`, `USBHIDKeyboard`, `USBHIDMouse`) — consult the library manager or the sketch comments for exact library names.
+4. Place the three files in a single sketch folder (e.g. `USB_Ware`) and open `latest_release.ino`.
+5. Configure board and port: `Tools -> Board -> <your ESP32-S2/S3 board>` and select the appropriate COM port.
+6. Edit `Configs.h` to change SSID, password, target folder, typing speed (`Delay`) and other settings if desired.
+7. Compile and upload.
+8. After the device boots it will host a Wi‑Fi AP (defaults to `USB Ware`). Connect to that AP and open the captive web UI (usually `http://10.0.0.1/` or the IP you configured).
+
+---
+
+## Configuration (important fields in `Configs.h`)
+
+* `inputSSID` / `inputPASS` — Wi‑Fi AP SSID and password.
+* `inputCH` — Wi‑Fi channel.
+* `inputHidden` — whether AP is hidden.
+* `maxClients` — maximum clients allowed.
+* `MAC` — custom MAC address bytes.
+* `local_IP`, `gateway`, `subnet` — network configuration.
+* `Delay` — multiplier that controls typing speed. Increase to slow typing, decrease for faster.
+* `linkURL` — URL opened by the Ping Site feature.
+* `pymode` and `target` — mode (`e` encrypt / `d` decrypt) and target folder name used by the embedded Python demo.
+
+---
+
+## How the web UI triggers payloads
+
+* The web UI (embedded in `Configs.h` as `MainPage[]`) posts parameters to `/set` on the ESP webserver.
+* `latest_release.ino` handles `/set` and calls corresponding functions in `USB_Tools.h` to start USB HID and perform keystrokes.
+
+---
+
+## Payload details
+
+* `py_script()` in `USB_Tools.h` types a PowerShell here‑string that writes a Python script `safe_dual_mode.py` to the user profile and executes it. The Python script demonstrates an encrypt/decrypt flow using the `cryptography` package.
+
+  * The script attempts to install `cryptography` if it isn't present.
+  * The script writes a generated key file and (in encrypt mode) will attempt to encrypt files under the specified target folder.
+* `pingSite()` opens the URL in a browser.
+* `barrelRollMode()` and `notepadMode()` are simple demos that open a search or Notepad and type text.
+
+---
+
+## Security & testing recommendations
+
+* Test only on a VM or sacrificial test machine with no network shares and no valuable data.
+* Prefer the `MODE = 'd'` (decrypt) only when you know the key file used for encryption exists, and avoid running `py_script()` on personal machines with important files.
+* Use a small `Delay` value only on fast test hardware. If typing occurs too fast and the host misses keystrokes, increase `Delay`.
+* Consider disabling or removing dangerous payloads before deploying to any environment.
+
+---
+
+## Troubleshooting
+
+* **HID not working**: make sure your board supports native USB HID. ESP32-WROOM modules without native USB cannot emulate HID directly.
+* **Compilation errors for USB libraries**: ensure the correct library versions for your core (ESP32-S2/S3 may require different libraries than AVR/Teensy boards).
+* **Web UI unreachable**: verify AP is up and that your client got an IP in the configured range. Visit `http://10.0.0.1/` by default.
 
 ---
 
 ## License
 
-This project is released under the **MIT License**. By using or contributing, you agree not to use the project for unlawful or unethical activities.
+Include your desired license here (MIT recommended for educational projects). Example:
+
+```
+MIT License
+Copyright (c) 2025 dfyR433
+Permission is hereby granted, free of charge, to any person obtaining a copy...
+```
