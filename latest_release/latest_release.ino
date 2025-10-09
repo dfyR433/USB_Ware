@@ -11,29 +11,32 @@ WebServer server(80);
 
 void handleSet() {
   String feature = server.hasArg("feature") ? server.arg("feature") : "";
+  String customScript = server.hasArg("customScript") ? server.arg("customScript") : "";
 
-  if (feature == "richroll") {
+  if (feature == "Richroll") {
     pingSite();
-  } else if (feature == "script") {
-    py_script();
-  } else if (feature == "script_richroll") {
-    py_script();
-    pingSite();
-  } else if (feature == "barrel_roll") {
-    barrelRollMode();
-  } else if (feature == "note") {
-    notepadMode();
-  } else if (feature == "all") {
-    py_script();
-    delay(1000);
-    barrelRollMode();
-    delay(3000);
-    pingSite();
-    delay(1000);
-    notepadMode();
+  } else if (feature == "Python Script") {
+      py_script();
+  } else if (feature == "Script + Ping") {
+      py_script();
+      pingSite();
+  } else if (feature == "Barrel Roll") {
+      barrelRollMode();
+  } else if (feature == "Notepad") {
+      notepadMode();
+  } else if (feature == "All") {
+      py_script();
+      delay(1000);
+      barrelRollMode();
+      delay(3000);
+      pingSite();
+      delay(1000);
+      notepadMode();
+  } else if (feature == "Custom Script") {
+      runDuckyScript(customScript);
   }
-  
-  server.send(500, "text/plain", "Done!");
+
+  server.send(200, "text/plain", feature + " Executed successfully.");
 }
 
 void startAP() {

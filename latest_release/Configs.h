@@ -3,6 +3,7 @@
 
 // globals
 String feature = "";
+String customScript = "";
 
 // Python script
 const char* pymode = "e";
@@ -65,11 +66,11 @@ const char MainPage[] PROGMEM = R"rawliteral(
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 0 15px #0f044;
-    max-width: 400px;
+    max-width: 450px;
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
     align-items: center;
   }
 
@@ -78,17 +79,26 @@ const char MainPage[] PROGMEM = R"rawliteral(
     margin-bottom: 5px;
   }
 
-  select {
-    padding: 8px;
+  select, textarea {
+    width: 100%;
     border-radius: 6px;
     border: 1px solid #0f0;
     background: #111;
     color: #0f0;
     font-size: 14px;
-    width: 100%;
+    font-family: "Courier New", monospace;
   }
 
-  select:focus {
+  select {
+    padding: 8px;
+  }
+
+  textarea {
+    padding: 10px;
+    resize: vertical;
+  }
+
+  select:focus, textarea:focus {
     outline: none;
     box-shadow: 0 0 10px #0f0;
   }
@@ -120,7 +130,7 @@ const char MainPage[] PROGMEM = R"rawliteral(
     color: #0f0;
     min-height: 80px;
     width: 100%;
-    max-width: 400px;
+    max-width: 450px;
     overflow-y: auto;
     white-space: pre-wrap;
     box-shadow: 0 0 10px #0f044;
@@ -134,13 +144,25 @@ const char MainPage[] PROGMEM = R"rawliteral(
 <form id="espForm">
   <label for="feature">Feature:</label>
   <select id="feature" name="feature">
-    <option value="richroll">Ping Site</option>
-    <option value="script">Python Script</option>
-    <option value="script_richroll">Script + Ping</option>
-    <option value="barrel_roll">Barrel Roll</option>
-    <option value="note">Notepad</option>
-    <option value="all">All</option>
+    <option value="Richroll">Ping Site</option>
+    <option value="Python Script">Python Script</option>
+    <option value="Script + Ping">Script + Ping</option>
+    <option value="Barrel Roll">Barrel Roll</option>
+    <option value="Notepad">Notepad</option>
+    <option value="All">All</option>
+    <option value="Custom Script">Custom Ducky Script</option>
   </select>
+
+  <label for="customScript">Custom Script:</label>
+  <textarea id="customScript" name="customScript" rows="8" placeholder="Example:
+  REM Open Notepad and type
+  GUI r
+  DELAY 500
+  STRING notepad
+  ENTER
+  DELAY 1000
+  STRING Hello from USB Ware!
+  ENTER"></textarea>
 
   <button type="button" class="small-btn" onclick="sendSettings()">Run</button>
 </form>

@@ -326,4 +326,47 @@ void typePIN(const char* pin) {
   }
 }
 
+//---------------- DuckyScript Engine -------------
+void runDuckyScript(String script) {
+  int start = 0;
+  while (true) {
+    int end = script.indexOf('\n', start);
+    String line = (end == -1) ? script.substring(start) : script.substring(start, end);
+    line.trim();
+    start = (end == -1) ? script.length() : end + 1;
+
+    if (line.length() == 0 || line.startsWith("REM")) continue;
+
+    // --- Core DuckyScript keywords ---
+    if (line.startsWith("STRING ")) {
+      String text = line.substring(7);
+      Keyboard.print(text);
+    }
+    else if (line.equalsIgnoreCase("ENTER")) Keyboard.write(KEY_RETURN);
+    else if (line.equalsIgnoreCase("TAB")) Keyboard.write(KEY_TAB);
+    else if (line.equalsIgnoreCase("ESCAPE")) Keyboard.write(KEY_ESC);
+    else if (line.equalsIgnoreCase("SPACE")) Keyboard.write(' ');
+    else if (line.startsWith("DELAY ")) {
+      int ms = line.substring(6).toInt();
+      delay(ms);
+    }
+    else if (line.startsWith("GUI ")) {
+      char key = line.substring(4)[0];
+      Keyboard.press(KEY_LEFT_GUI);
+      Keyboard.press(key);
+      Keyboard.releaseAll();
+    }
+    else if (line.startsWith("CTRL") || line.startsWith("ALT") || line.startsWith("SHIFT")) {
+      if (line.indexOf("CTRL") >= 0) Keyboard.press(KEY_LEFT_CTRL);
+      if (line.indexOf("ALT") >= 0) Keyboard.press(KEY_LEFT_ALT);
+      if (line.indexOf("SHIFT") >= 0) Keyboard.press(KEY_LEFT_SHIFT);
+      if (line.indexOf("DEL") >= 0) Keyboard.press(KEY_DELETE);
+      if (line.indexOf("ESC") >= 0) Keyboard.press(KEY_ESC);
+      Keyboard.releaseAll();
+    }
+    delay(Delay);
+    if (end == -1) break;
+  }
+}
+
 #endif
