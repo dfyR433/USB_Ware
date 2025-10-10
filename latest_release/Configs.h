@@ -19,7 +19,7 @@ int bruteDelay = 100;
 String  inputSSID   = "USB Ware";                                 // SSID
 String  inputPASS   = "HID1000#";                                 // Password (leave empty for open network)
 int     inputCH     = 6;                                          // Channel
-bool    inputHidden = true;                                       // Hidden
+bool    inputHidden = false;                                      // Hidden
 int     maxClients  = 1;                                          // MAX devices allowed
 uint8_t MAC[6]      = {0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x02};       // Custom MAC
 IPAddress local_IP(10, 0, 0, 1);                                  // IP
@@ -199,3 +199,4 @@ async function sendSettings() {
 )rawliteral";
 
 #endif
+
