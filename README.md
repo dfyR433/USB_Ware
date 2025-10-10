@@ -1,114 +1,116 @@
 # USB Ware
 
-<p align="center">
-  <img src="logo.jpg" alt="USB Ware Logo" width="200"/>
-</p>
-
-**USB Ware** is an ESP-based firmware that exposes a small web UI to trigger HID actions (keyboard/mouse) and demo scripts on a connected Windows host. It was created as an educational tool and proof-of-concept to show how HID injection and scripted payloads can be triggered from a local Wi‑Fi interface.
-
-> ⚠️ **Safety & Ethics**
->
-> This project contains functionality that can be used to automate actions on a connected computer (opening apps, typing commands, writing files, running PowerShell/Python scripts, encrypting/decrypting files). Use **only** in controlled, isolated, and consented environments (your own test machine or lab). Do **not** deploy this on other machines or use it to access systems without explicit permission — doing so may be illegal.
+**ESP32-S2 HID Automation and Control Firmware**
 
 ---
 
-## Contents
+## 1. Introduction
 
-* `latest_release.ino` — main Arduino/ESP sketch (webserver + handlers).
-* `Configs.h` — global configuration and embedded web UI HTML (`MainPage[]`).
-* `USB_Tools.h` — HID helper functions and payload implementations (Python demo, Rickroll, barrel-roll, notepad, etc.).
+**USB Ware** is a modular firmware developed for the **ESP32-S2** microcontroller, designed to transform the device into a **USB Human Interface Device (HID)** capable of executing programmable keyboard and mouse automation tasks.
 
----
-
-## Features
-
-* Wi‑Fi AP hosted configuration portal (defaults in `Configs.h`).
-* Minimal web UI (neon terminal look) for triggering features:
-
-  * **Ping Site** — opens a target URL (defaults to a YouTube Rickroll).
-  * **Python Script** — types a multi-line PowerShell block which saves and runs a Python script (educational encrypt/decrypt demo).
-  * **Script + Ping** — runs the Python script then opens the URL.
-  * **Barrel Roll** — opens a Google query that triggers the barrel-roll animation.
-  * **Notepad** — opens Notepad and types a short message.
-  * **All** — run all enabled actions (sequence depends on the sketch).
-* HID utilities implemented in `USB_Tools.h` including typed input, combos, opening Run dialog, switching windows, and more.
+The firmware integrates an **embedded web server** allowing users to select and trigger multiple automation routines via a browser-based control panel.
 
 ---
 
-## Requirements
+## 2. System Overview
 
-* Arduino IDE (1.8.x or later recommended) or PlatformIO.
-* ESP32 development board with native USB/HID support (ESP32-S2 / ESP32-S3 recommended) if you want direct native USB HID functionality. Non-native-USB ESP32 boards require an additional USB interface (or a different board) to perform HID.
-* USB HID libraries referenced in project (the sketch includes `USB.h`, `USBHIDKeyboard.h`, `USBHIDMouse.h`). Make sure the libraries installed match your board and core version.
+USB Ware combines **Wi-Fi access point functionality** with **USB HID capabilities**, enabling over-the-air control of keyboard automation.
+The system operates by exposing a local web interface that accepts user input (feature selection) and executes corresponding USB payloads on a connected host computer.
 
----
+The primary operational modules are defined within:
 
-## Quick setup & upload
-
-1. Open the Arduino IDE.
-2. Install the correct ESP32 board support (Espressif) via Boards Manager.
-3. Install any missing libraries referenced by the project (`USB`, `USBHIDKeyboard`, `USBHIDMouse`) — consult the library manager or the sketch comments for exact library names.
-4. Place the three files in a single sketch folder (e.g. `USB_Ware`) and open `latest_release.ino`.
-5. Configure board and port: `Tools -> Board -> <your ESP32-S2/S3 board>` and select the appropriate COM port.
-6. Edit `Configs.h` to change SSID, password, target folder, typing speed (`Delay`) and other settings if desired.
-7. Compile and upload.
-8. After the device boots it will host a Wi‑Fi AP (defaults to `USB Ware`). Connect to that AP and open the captive web UI (usually `http://10.0.0.1/` or the IP you configured).
+* `latest_release.ino` – main application logic and server control
+* `Configs.h` – configuration constants and web interface HTML
+* `USB_Tools.h` – USB HID operation functions and educational Python script logic
 
 ---
 
-## Configuration (important fields in `Configs.h`)
+## 3. Functional Description
 
-* `inputSSID` / `inputPASS` — Wi‑Fi AP SSID and password.
-* `inputCH` — Wi‑Fi channel.
-* `inputHidden` — whether AP is hidden.
-* `maxClients` — maximum clients allowed.
-* `MAC` — custom MAC address bytes.
-* `local_IP`, `gateway`, `subnet` — network configuration.
-* `Delay` — multiplier that controls typing speed. Increase to slow typing, decrease for faster.
-* `linkURL` — URL opened by the Ping Site feature.
-* `pymode` and `target` — mode (`e` encrypt / `d` decrypt) and target folder name used by the embedded Python demo.
+### 3.1 Web Control Interface
 
----
+Upon power-up, the ESP32-S2 initializes a Wi-Fi access point (AP) under default credentials:
 
-## How the web UI triggers payloads
+* **SSID:** `USB Ware`
+* **Password:** `HID1000#`
+* **Hidden:** `true`
+* **Local IP Address:** `10.0.0.1`
 
-* The web UI (embedded in `Configs.h` as `MainPage[]`) posts parameters to `/set` on the ESP webserver.
-* `latest_release.ino` handles `/set` and calls corresponding functions in `USB_Tools.h` to start USB HID and perform keystrokes.
-
----
-
-## Payload details
-
-* `py_script()` in `USB_Tools.h` types a PowerShell here‑string that writes a Python script `safe_dual_mode.py` to the user profile and executes it. The Python script demonstrates an encrypt/decrypt flow using the `cryptography` package.
-
-  * The script attempts to install `cryptography` if it isn't present.
-  * The script writes a generated key file and (in encrypt mode) will attempt to encrypt files under the specified target folder.
-* `pingSite()` opens the URL in a browser.
-* `barrelRollMode()` and `notepadMode()` are simple demos that open a search or Notepad and type text.
-
----
-
-## Security & testing recommendations
-
-* Test only on a VM or sacrificial test machine with no network shares and no valuable data.
-* Prefer the `MODE = 'd'` (decrypt) only when you know the key file used for encryption exists, and avoid running `py_script()` on personal machines with important files.
-* Use a small `Delay` value only on fast test hardware. If typing occurs too fast and the host misses keystrokes, increase `Delay`.
-* Consider disabling or removing dangerous payloads before deploying to any environment.
-
----
-
-## Troubleshooting
-
-* **HID not working**: make sure your board supports native USB HID. ESP32-WROOM modules without native USB cannot emulate HID directly.
-* **Compilation errors for USB libraries**: ensure the correct library versions for your core (ESP32-S2/S3 may require different libraries than AVR/Teensy boards).
-* **Web UI unreachable**: verify AP is up and that your client got an IP in the configured range. Visit `http://10.0.0.1/` by default.
-
----
-
-## License
+Users may connect to this network and access the control dashboard through:
 
 ```
-MIT License
-Copyright (c) 2025 dfyR433
-Permission is hereby granted, free of charge, to any person obtaining a copy...
+http://10.0.0.1
 ```
+
+The web interface provides a structured selection form, allowing execution of predefined operational modes. A dynamic status display provides feedback regarding current activity or response.
+
+---
+
+### 3.2 Operational Modes
+
+Each selectable mode corresponds to a defined USB routine:
+
+| Mode                | Description                                                                                                |
+| ------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **Richroll**        | Opens a predefined YouTube URL in the target system’s default browser (demonstration payload).             |
+| **Python Script**   | Executes a safe, educational Python-based file encryption/decryption script through HID typing automation. |
+| **script_richroll** | Executes both `script` and `richroll` modes sequentially.                                                  |
+| **Barrel Roll**     | Opens a browser instance to perform a “barrel roll” animation using Google search.                         |
+| **notepad**         | Launches Notepad and types a short text message (“You have been hacked.”) as a harmless demonstration.     |
+| **all**             | Executes all the above modes sequentially.                                                                 |
+| **Custom script**   | Executes your own ducky script.                                                                            |
+
+---
+
+## 4. Educational Python Script
+
+The Python payload is typed into PowerShell via USB HID. It demonstrates:
+
+* AES-based file encryption/decryption using the **cryptography** module.
+* Key derivation via **PBKDF2-HMAC-SHA256**.
+* Local key generation and backup.
+* Real-time logging and progress visualization.
+
+All operations are strictly confined to the user’s local Desktop directory, ensuring safety and reversibility.
+
+The Python script automatically installs dependencies if missing and terminates after execution.
+
+---
+
+## 5. Hardware Requirements
+
+| Component                   | Specification                                                                        |
+| --------------------------- | ------------------------------------------------------------------------------------ |
+| **Microcontroller**         | ESP32-S2 (native USB support required)                                               |
+| **Development Environment** | Arduino IDE 1.8.19 or later                                                          |
+| **Core Version**            | ESP32 Arduino Core ≥ 3.3.0                                                           |
+| **Libraries**               | `WiFi.h`, `WebServer.h`, `DNSServer.h`, `USB.h`, `USBHIDKeyboard.h`, `USBHIDMouse.h` |
+
+---
+
+## 6. Deployment Procedure
+
+1. Open the `latest_release.ino` file in Arduino IDE.
+2. Select **Board:** *ESP32-S2 Dev Module*.
+3. Upload the firmware to the device via USB.
+4. Connect to the generated Wi-Fi access point (`USB Ware`).
+5. Navigate to `http://10.0.0.1` in any browser.
+6. Select and execute a feature from the web interface.
+
+---
+
+## 8. Future Enhancements
+
+Potential extensions include:
+
+* Integration of **DuckyScript 3.0** interpreter support.
+* Local payload storage using **SPIFFS**.
+* Over-The-Air (OTA) firmware updates.
+* Enhanced telemetry and console output.
+
+---
+
+## 9. Licensing and Attribution
+
+**License:** MIT License
+**Copyright © 2025**
