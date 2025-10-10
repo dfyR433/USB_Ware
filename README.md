@@ -1,5 +1,9 @@
 # USB Ware
 
+<p align="center">
+  <img src="logo.jpg" alt="One Click Logo" width="200"/>
+</p>
+
 **ESP32-S2 HID Automation and Control Firmware**
 
 ---
