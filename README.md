@@ -33,7 +33,7 @@ Upon power-up, the ESP32-S2 initializes a Wi-Fi access point (AP) under default 
 
 * **SSID:** `USB Ware`
 * **Password:** `HID1000#`
-* **Hidden:** `true`
+* **Hidden:** `false`
 * **Local IP Address:** `10.0.0.1`
 
 Users may connect to this network and access the control dashboard through:
