@@ -1,7 +1,7 @@
 # USB Ware
 
 <p align="center">
-  <img src="logo.jpg" alt="One Click Logo" width="200"/>
+  <img src="logo.jpg" alt="USB Ware Logo" width="200"/>
 </p>
 
 **ESP32-S2 HID Automation and Control Firmware**
@@ -83,6 +83,11 @@ The Python script automatically installs dependencies if missing and terminates 
 
 ## 5. Hardware Requirements
 
+<p align="center">
+  <img src="ESP32-S2-Mini-V1.0.0-LOLIN-WIFI-IOT-Board.png" alt="ESP32-S2 Mini" width="200"/>
+</p>
+
+
 | Component                   | Specification                                                                        |
 | --------------------------- | ------------------------------------------------------------------------------------ |
 | **Microcontroller**         | ESP32-S2 (native USB support required)                                               |
@@ -117,4 +122,3 @@ Potential extensions include:
 ## 9. Licensing and Attribution
 
 **License:** MIT License
-**Copyright © 2025**
