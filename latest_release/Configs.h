@@ -2,18 +2,10 @@
 #define CONFIGS_H
 
 // globals
-String feature = "";
 String customScript = "";
-
-// Python script
-const char* pymode = "e";
-const char* target = "Desktop";
 
 // DNS Port
 const byte DNS_PORT = 53;
-
-// Brute-force delay in milliseconds per attempt
-int bruteDelay = 100;
 
 // Wi-Fi AP settings
 String  inputSSID   = "USB Ware";                                 // SSID
@@ -24,16 +16,9 @@ int     maxClients  = 1;                                          // MAX devices
 uint8_t MAC[6]      = {0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x02};       // Custom MAC
 IPAddress local_IP(10, 0, 0, 1);                                  // IP
 IPAddress gateway(10, 0, 0, 1);                                   // Gateway
-IPAddress subnet(255, 255, 255, 0);                               // Subnet mask 
-
-// Typing delay multiplier (affects HID typing speed)
-float Delay = 50.0;
-
-// YouTube URL for Rickroll payload
-const char* linkURL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+IPAddress subnet(255, 255, 255, 0);                               // Subnet mask
 
 //--------------------------------------------------
-
 
 const char MainPage[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
@@ -79,7 +64,7 @@ const char MainPage[] PROGMEM = R"rawliteral(
     margin-bottom: 5px;
   }
 
-  select, textarea {
+  select, textarea, input[type="file"] {
     width: 100%;
     border-radius: 6px;
     border: 1px solid #0f0;
@@ -89,7 +74,7 @@ const char MainPage[] PROGMEM = R"rawliteral(
     font-family: "Courier New", monospace;
   }
 
-  select {
+  select, input[type="file"] {
     padding: 8px;
   }
 
@@ -98,7 +83,7 @@ const char MainPage[] PROGMEM = R"rawliteral(
     resize: vertical;
   }
 
-  select:focus, textarea:focus {
+  select:focus, textarea:focus, input[type="file"]:focus {
     outline: none;
     box-shadow: 0 0 10px #0f0;
   }
@@ -142,27 +127,10 @@ const char MainPage[] PROGMEM = R"rawliteral(
 <h2>USB Ware</h2>
 
 <form id="espForm">
-  <label for="feature">Feature:</label>
-  <select id="feature" name="feature">
-    <option value="Richroll">Ping Site</option>
-    <option value="Python Script">Python Script</option>
-    <option value="Script + Ping">Script + Ping</option>
-    <option value="Barrel Roll">Barrel Roll</option>
-    <option value="Notepad">Notepad</option>
-    <option value="All">All</option>
-    <option value="Custom Script">Custom Ducky Script</option>
-  </select>
+  <label for="customScript">Custom Script</label>
+  <textarea id="customScript" name="customScript" rows="8" placeholder="Enter your script here"></textarea>
 
-  <label for="customScript">Custom Script:</label>
-  <textarea id="customScript" name="customScript" rows="8" placeholder="Example:
-  REM Open Notepad and type
-  GUI r
-  DELAY 500
-  STRING notepad
-  ENTER
-  DELAY 1000
-  STRING Hello from USB Ware!
-  ENTER"></textarea>
+  <input type="file" id="fileInput" accept=".txt" onchange="importFile()" />
 
   <button type="button" class="small-btn" onclick="sendSettings()">Run</button>
 </form>
@@ -170,6 +138,19 @@ const char MainPage[] PROGMEM = R"rawliteral(
 <div id="status">Status output will appear here...</div>
 
 <script>
+function importFile() {
+  const file = document.getElementById('fileInput').files[0];
+  if (file && file.name.endsWith('.txt')) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      document.getElementById('customScript').value = e.target.result;
+    };
+    reader.readAsText(file);
+  } else {
+    alert('Please select a valid .txt file');
+  }
+}
+
 async function sendSettings() {
   const form = document.getElementById('espForm');
   const params = new URLSearchParams(new FormData(form));
@@ -199,4 +180,3 @@ async function sendSettings() {
 )rawliteral";
 
 #endif
-
