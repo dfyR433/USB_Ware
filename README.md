@@ -29,9 +29,7 @@ The primary operational modules are defined within:
 
 ---
 
-## 3. Functional Description
-
-### 3.1 Web Control Interface
+## 3 Web Control Interface
 
 Upon power-up, the ESP32-S2 initializes a Wi-Fi access point (AP) under default credentials:
 
@@ -47,37 +45,6 @@ http://10.0.0.1
 ```
 
 The web interface provides a structured selection form, allowing execution of predefined operational modes. A dynamic status display provides feedback regarding current activity or response.
-
----
-
-### 3.2 Operational Modes
-
-Each selectable mode corresponds to a defined USB routine:
-
-| Mode                | Description                                                                                                |
-| ------------------- | ---------------------------------------------------------------------------------------------------------- |
-| **Richroll**        | Opens a predefined YouTube URL in the target system’s default browser (demonstration payload).             |
-| **Python Script**   | Executes a safe, educational Python-based file encryption/decryption script through HID typing automation. |
-| **script_richroll** | Executes both `script` and `richroll` modes sequentially.                                                  |
-| **Barrel Roll**     | Opens a browser instance to perform a “barrel roll” animation using Google search.                         |
-| **notepad**         | Launches Notepad and types a short text message (“You have been hacked.”) as a harmless demonstration.     |
-| **all**             | Executes all the above modes sequentially.                                                                 |
-| **Custom script**   | Executes your own ducky script.                                                                            |
-
----
-
-## 4. Educational Python Script
-
-The Python payload is typed into PowerShell via USB HID. It demonstrates:
-
-* AES-based file encryption/decryption using the **cryptography** module.
-* Key derivation via **PBKDF2-HMAC-SHA256**.
-* Local key generation and backup.
-* Real-time logging and progress visualization.
-
-All operations are strictly confined to the user’s local Desktop directory, ensuring safety and reversibility.
-
-The Python script automatically installs dependencies if missing and terminates after execution.
 
 ---
 
@@ -112,13 +79,6 @@ The Python script automatically installs dependencies if missing and terminates 
 
 Potential extensions include:
 
-* Integration of **DuckyScript 3.0** interpreter support.
 * Local payload storage using **SPIFFS**.
 * Over-The-Air (OTA) firmware updates.
 * Enhanced telemetry and console output.
-
----
-
-## 9. Licensing and Attribution
-
-**License:** MIT License
