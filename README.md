@@ -1,7 +1,7 @@
 # USB Ware
 
 <p align="center">
-  <img src="logo.jpg" alt="USB Ware Logo" width="200"/>
+  <img src="img/logo.jpg" alt="USB Ware Logo" width="200"/>
 </p>
 
 **ESP32-S2 HID Automation and Control Firmware**
@@ -51,7 +51,7 @@ The web interface provides a structured selection form, allowing execution of pr
 ## 5. Hardware Requirements
 
 <p align="center">
-  <img src="ESP32-S2-Mini-V1.0.0-LOLIN-WIFI-IOT-Board.png" alt="ESP32-S2 Mini" width="200"/>
+  <img src="img/ESP32-S2-Mini-V1.0.0-LOLIN-WIFI-IOT-Board.png" alt="ESP32-S2 Mini" width="200"/>
 </p>
 
 
