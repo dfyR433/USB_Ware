@@ -16,20 +16,7 @@ The firmware integrates an **embedded web server** allowing users to select and 
 
 ---
 
-## 2. System Overview
-
-USB Ware combines **Wi-Fi access point functionality** with **USB HID capabilities**, enabling over-the-air control of keyboard automation.
-The system operates by exposing a local web interface that accepts user input (feature selection) and executes corresponding USB payloads on a connected host computer.
-
-The primary operational modules are defined within:
-
-* `latest_release.ino` – main application logic and server control
-* `Configs.h` – configuration constants and web interface HTML
-* `USB_Tools.h` – USB HID operation functions and educational Python script logic
-
----
-
-## 3 Web Control Interface
+## 2. Web Control Interface
 
 Upon power-up, the ESP32-S2 initializes a Wi-Fi access point (AP) under default credentials:
 
@@ -48,7 +35,7 @@ The web interface provides a structured selection form, allowing execution of pr
 
 ---
 
-## 5. Hardware Requirements
+## 3. Requirements
 
 <p align="center">
   <img src="img/ESP32-S2-Mini-V1.0.0-LOLIN-WIFI-IOT-Board.png" alt="ESP32-S2 Mini" width="200"/>
@@ -64,18 +51,7 @@ The web interface provides a structured selection form, allowing execution of pr
 
 ---
 
-## 6. Deployment Procedure
-
-1. Open the `latest_release.ino` file in Arduino IDE.
-2. Select **Board:** *ESP32-S2 Dev Module*.
-3. Upload the firmware to the device via USB.
-4. Connect to the generated Wi-Fi access point (`USB Ware`).
-5. Navigate to `http://10.0.0.1` in any browser.
-6. Select and execute a feature from the web interface.
-
----
-
-## 8. Future Enhancements
+## 4. Future Enhancements
 
 Potential extensions include:
 
