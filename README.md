@@ -1,7 +1,7 @@
 # USB Ware
 
 <p align="center">
-  <img src="img/USB_Ware.jpg" alt="USB Ware" width="200"/>
+  <img src="img/USB_Ware.jpg" alt="USB Ware" width="1000"/>
 </p>
 
 **ESP32-S2 HID Automation and Control Firmware**
