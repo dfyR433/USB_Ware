@@ -1,5 +1,3 @@
-# USB Ware
-
 <p align="center">
   <img src="img/USB_Ware.jpg" alt="USB Ware" width="1000"/>
 </p>
